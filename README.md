@@ -89,3 +89,4 @@ Contributions to this project are welcome. Please fork the repository and submit
 - [NLTK](https://www.nltk.org/) for natural language processing tools.
 - [SentenceTransformers](https://www.sbert.net/) for the pre-trained model used in relevance scoring.
 - [Plotly](https://plotly.com/) and [Dash](https://dash.plotly.com/) for interactive visualizations.
+- [Newspaper3k](https://newspaper.readthedocs.io/) for article content extraction
