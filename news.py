@@ -17,17 +17,14 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from visualizations import run_dashboard as viz_run_dashboard
 
-# Download necessary NLTK data
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)
 
-# Initialize VADER sentiment analyzer
 vader = SentimentIntensityAnalyzer()
 
-# Initialize NewsAPI client
-newsapi = NewsApiClient(api_key='NEWS_API_KEY')
+load_dotenv()
+newsapi = NewsApiClient(api_key=os.getenv('NEWS_API_KEY'))
 
-# Initialize SentenceTransformer model
 model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
 
 def get_user_input():
