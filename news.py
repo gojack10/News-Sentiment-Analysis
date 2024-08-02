@@ -1,19 +1,21 @@
 import requests
-from newsapi import NewsApiClient
 import nltk
+import string
+import threading
+import sys
+import os
+import numpy as np
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
-import string
 from newspaper import Article
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import LatentDirichletAllocation, NMF
-import numpy as np
+from dotenv import load_dotenv
+from newsapi import NewsApiClient
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from visualizations import run_dashboard as viz_run_dashboard
-import threading
-import sys
 
 # Download necessary NLTK data
 nltk.download('punkt', quiet=True)
@@ -23,7 +25,7 @@ nltk.download('stopwords', quiet=True)
 vader = SentimentIntensityAnalyzer()
 
 # Initialize NewsAPI client
-newsapi = NewsApiClient(api_key='10e914237b6a42e6bb89de9b238d74ef')
+newsapi = NewsApiClient(api_key='NEWS_API_KEY')
 
 # Initialize SentenceTransformer model
 model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
