@@ -1,4 +1,4 @@
-# News Sentiment Analysis Dashboard
+# News Sentiment Analysis
 
 This project is a news aggregator that collects articles on a specific topic, performs sentiment analysis, and displays the results in an interactive dashboard. It uses the NewsAPI to fetch articles, NLTK's VADER for sentiment analysis, machine learning for relevance scoring, and creates visualizations using Plotly and Dash.
 
