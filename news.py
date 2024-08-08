@@ -15,7 +15,6 @@ from dotenv import load_dotenv
 from newsapi import NewsApiClient
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from visualizations import run_dashboard as viz_run_dashboard
 
 nltk.download('punkt', quiet=True)
 nltk.download('stopwords', quiet=True)

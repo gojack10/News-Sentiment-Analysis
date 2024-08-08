@@ -1,49 +1,52 @@
-from news import get_user_input, process_news
-from visualizations import run_dashboard
-import webbrowser
-import threading
-import time
-import requests
-
-def print_article_details(articles, topic):
-    print(f"\nAnalyzed articles for topic: '{topic}'")
-    print(f"Number of relevant articles found: {len(articles)}")
-    print("\nArticles sorted by relevance score, then sentiment strength:\n")
-    
-    for article in articles:
-        print(f"\nTitle: {article['title']}")
-        print(f"Source: {article['source']}")
-        print(f"Published: {article['published_at']}")
-        print(f"Relevance Score: {article['relevance_score']:.4f}")
-        print(f"Sentiment Score: {article['sentiment_score']:.2f}")
-        print(f"Sentiment Breakdown:")
-        print(f"  Positive: {article['sentiment_percentages']['positive']}%")
-        print(f"  Neutral: {article['sentiment_percentages']['neutral']}%")
-        print(f"  Negative: {article['sentiment_percentages']['negative']}%")
-        print(f"URL: {article['url']}")
-
-def open_browser():
-    webbrowser.open_new('http://127.0.0.1:8050/')
+import os
+import subprocess
+import sys
 
 if __name__ == "__main__":
-    topic, num_articles = get_user_input()
-    articles = process_news(topic, num_articles)
+    # Get the directory of the current script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    print(f"Script directory: {script_dir}")
     
-    if articles:
-        print_article_details(articles, topic)
-        
-        # Open the browser after a short delay
-        threading.Timer(1, open_browser).start()
-        
-        # Run the dashboard
-        run_dashboard(articles)
-        
-        # After the dashboard is closed, send a shutdown request
-        try:
-            requests.post('http://127.0.0.1:8050/shutdown')
-        except:
-            pass
-        
-        print("\nDashboard closed. Program exiting.")
-    else:
-        print("No articles to display. Exiting.")
+    # Run R script for visualization
+    r_script_path = os.path.join(script_dir, 'visualizations.R')
+    print(f"R script path: {r_script_path}")
+    
+    # Change the working directory to the script directory
+    os.chdir(script_dir)
+    print(f"Changed working directory to: {os.getcwd()}")
+    
+    # List files in the current directory
+    print("Files in the current directory:")
+    for file in os.listdir():
+        print(file)
+    
+    # Get the path to Rscript
+    rscript_cmd = 'Rscript.exe' if sys.platform.startswith('win') else 'Rscript'
+    
+    try:
+        result = subprocess.run([rscript_cmd, r_script_path], 
+                                check=True, 
+                                capture_output=True, 
+                                text=True)
+        print("R script output:")
+        print(result.stdout)
+        print("\nVisualization complete. Check the generated HTML files in the script directory.")
+    except subprocess.CalledProcessError as e:
+        print(f"Error running R script: {e}")
+        print("R script output:")
+        print(e.stdout)
+        print("R script error:")
+        print(e.stderr)
+        print("You can try running the R script manually:")
+        print(f"{rscript_cmd} {r_script_path}")
+    except FileNotFoundError:
+        print("Error: Rscript not found.")
+        print("Please ensure R is installed and added to your system PATH.")
+        print("You can also try running the R script manually:")
+        print(f"{rscript_cmd} {r_script_path}")
+
+    # Print current working directory and list files again
+    print("\nFinal working directory:", os.getcwd())
+    print("Files in the directory:")
+    for file in os.listdir():
+        print(file)
