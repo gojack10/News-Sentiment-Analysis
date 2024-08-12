@@ -4,10 +4,9 @@ script_dir <- dirname(rstudioapi::getActiveDocumentContext()$path)
 # Set the working directory to the script's directory
 setwd(script_dir)
 
-# Load required libraries
-library(tidyverse)
-library(plotly)
-library(heatmaply)
+# Install and load required packages
+if (!requireNamespace("pacman", quietly = TRUE)) install.packages("pacman")
+pacman::p_load(tidyverse, plotly, heatmaply, gplots)
 
 # Print the current working directory
 print(paste("Current working directory:", getwd()))
@@ -50,16 +49,19 @@ heatmap_data <- data %>%
   select(title, source, sentiment_score) %>%
   pivot_wider(names_from = source, values_from = sentiment_score)
 
-# Print heatmap data summary
-print("Heatmap data summary:")
-print(summary(heatmap_data))
+# Remove columns with all NA values
+heatmap_data <- heatmap_data %>%
+  select_if(~!all(is.na(.)))
 
 # Convert to matrix
 mat <- as.matrix(heatmap_data[, -1])
 rownames(mat) <- heatmap_data$title
 
-# Remove rows and columns with all NA values
-mat <- mat[rowSums(!is.na(mat)) > 0, colSums(!is.na(mat)) > 0]
+# Remove rows with all NA values
+mat <- mat[rowSums(!is.na(mat)) > 0, ]
+
+# Replace any remaining NA values with 0
+mat[is.na(mat)] <- 0
 
 # If matrix is empty after removing NAs, stop heatmap creation
 if (nrow(mat) == 0 || ncol(mat) == 0) {
@@ -73,69 +75,82 @@ if (nrow(mat) == 0 || ncol(mat) == 0) {
   
   # Remove columns with zero standard deviation
   mat <- mat[, sds != 0]
+
+# Proceed with heatmap creation if valid columns remain
+if (ncol(mat) > 0) {
+  # Sort the matrix by mean sentiment score (descending order)
+  mean_scores <- rowMeans(mat, na.rm = TRUE)
+  mat <- mat[order(mean_scores, decreasing = TRUE), ]
   
-  # Proceed with heatmap creation if valid columns remain
-  if (ncol(mat) > 0) {
-    heatmap <- tryCatch({
-      heatmaply(mat,
-                dendrogram = "none",
-                xlab = "", ylab = "",
-                main = "Sentiment Heatmap by Source and Article",
-                scale = "none",
-                margins = c(60, 100, 40, 20),
-                grid_color = "white",
-                grid_width = 0.00001,
-                titleX = FALSE,
-                hide_colorbar = FALSE,
-                branches_lwd = 0.1,
-                label_names = c("Article", "Source", "Sentiment Score"),
-                fontsize_row = 5, fontsize_col = 7,
-                labCol = colnames(mat),
-                labRow = rownames(mat),
-                colors = colorRampPalette(c("#CB1B4E", "#E2E2E2", "#23BBAC"))(100),
-                limits = c(-1, 1),
-                colorbar_len = 0.5,
-                key.title = "Sentiment Score",
-                na.rm = TRUE
-      )
-    }, error = function(e) {
-      print(paste("Error in creating heatmap:", e$message))
-      NULL
-    })
-    
-    if (!is.null(heatmap)) {
-      # Save without making it self-contained
-      htmlwidgets::saveWidget(heatmap, "sentiment_heatmap.html", selfcontained = FALSE)
-      print(paste("Heatmap created. Check sentiment_heatmap.html in", script_dir))
-    } else {
-      print("Failed to create heatmap.")
-    }
-  } else {
-    print("Error: No valid columns for heatmap creation after removing zero variance columns.")
+  # Create a color palette function
+  sentiment_palette <- colorRampPalette(c("#CB1B4E", "#E2E2E2", "#23BBAC"))
+  
+  # Create row side colors based on mean sentiment scores
+  row_colors <- data.frame(sentiment = sentiment_palette(100)[cut(mean_scores[order(mean_scores, decreasing = TRUE)], breaks = 100)])
+  
+  # Read overall sentiment from CSV
+  overall_sentiment_path <- file.path(script_dir, "overall_sentiment.csv")
+  overall_sentiment_df <- read.csv(overall_sentiment_path, stringsAsFactors = FALSE)
+  overall_sentiment <- as.numeric(overall_sentiment_df$overall_sentiment[1])
+
+  # Function to categorize sentiment
+  categorize_sentiment <- function(score) {
+    if (is.na(score)) return("unknown")
+    else if (score < -0.75) return("very negative")
+    else if (score < -0.25) return("negative")
+    else if (score < -0.1) return("slightly negative")
+    else if (score < 0.1) return("neutral")
+    else if (score < 0.25) return("slightly positive")
+    else if (score < 0.75) return("positive")
+    else return("very positive")
   }
-}
 
-# Create a bar chart of average sentiment by source
-create_bar_chart <- function(data) {
-  avg_sentiment <- data %>%
-    group_by(source) %>%
-    summarize(avg_sentiment = mean(sentiment_score, na.rm = TRUE))
+  sentiment_category <- categorize_sentiment(overall_sentiment)
+
+  # Create annotation for overall sentiment
+  overall_sentiment_annotation <- list(
+    x = 0.5,
+    y = 1.01,  # Adjusted to appear above the heatmap
+    text = sprintf("Overall sentiment: %.4f, %s", overall_sentiment, sentiment_category),
+    xref = "paper",
+    yref = "paper",
+    xanchor = "center",
+    yanchor = "bottom",
+    showarrow = FALSE,
+    font = list(size = 14)
+  )
+
+  # Create interactive heatmap with heatmaply
+  heatmap_interactive <- heatmaply(mat,
+            dendrogram = "none",
+            xlab = "", ylab = "",
+            main = "Sentiment Heatmap by Source and Article",
+            scale = "none",
+            margins = c(60, 100, 60, 20),  # Increased top margin
+            grid_color = "white",
+            grid_width = 0.00001,
+            titleX = FALSE,
+            hide_colorbar = FALSE,
+            branches_lwd = 0.1,
+            label_names = c("Article", "Source", "Sentiment Score"),
+            fontsize_row = 5, fontsize_col = 7,
+            labCol = colnames(mat),
+            labRow = NULL,  # Remove row labels
+            colors = sentiment_palette(100),
+            limits = c(-1, 1),
+            colorbar_len = 0.5,
+            key.title = "Sentiment Score",
+            na.rm = TRUE,
+            plot_method = "ggplot"
+  ) %>%
+    layout(
+      yaxis = list(showticklabels = FALSE, title = ""),  # Remove y-axis labels and title
+      annotations = overall_sentiment_annotation,  # Add overall sentiment annotation
+      margin = list(t = 100)  # Increase top margin to accommodate annotation
+    )
   
-  bar <- plot_ly(avg_sentiment, x = ~source, y = ~avg_sentiment, type = 'bar',
-                 marker = list(color = ~avg_sentiment, 
-                               colorscale = list(c(0, "#CB1B4E"),
-                                                 c(0.5, "#E2E2E2"),
-                                                 c(1, "#23BBAC")))) %>%
-    layout(title = 'Average Sentiment by Source',
-           xaxis = list(title = 'Source'),
-           yaxis = list(title = 'Average Sentiment Score'),
-           plot_bgcolor = "rgba(0,0,0,0)",
-           paper_bgcolor = "rgba(0,0,0,0)")
-  
-  htmlwidgets::saveWidget(bar, "avg_sentiment_by_source.html", selfcontained = FALSE)
-}
+  # Save interactive heatmap
+  htmlwidgets::saveWidget(heatmap_interactive, "sentiment_heatmap_interactive.html", selfcontained = FALSE)
+}}
 
-# Create visualizations
-create_bar_chart(data)
-
-print(paste("Visualizations created. Check avg_sentiment_by_source.html and sentiment_heatmap.html in", script_dir))
+print(paste("Visualizations created. Check in", script_dir))
